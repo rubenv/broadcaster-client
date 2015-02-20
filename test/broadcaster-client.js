@@ -124,5 +124,6 @@ describe("Broadcaster client", function () {
         });
     }
 
+    testClient("longpoll");
     testClient("websocket");
 });

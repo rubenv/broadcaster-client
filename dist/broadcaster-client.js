@@ -27,6 +27,10 @@
             self.auth = {};
         }
 
+        if (!self.timeout) {
+            self.timeout = 30000;
+        }
+
         // Parse URL
         var parser = document.createElement("a");
         parser.href = url;
@@ -41,13 +45,26 @@
     BroadcasterClient.prototype.connect = function (cb) {
         var self = this;
 
-        function onConnect(err) {
+        function onErr(err) {
+            if (err) {
+                return cb(err);
+            }
+        }
+
+        self._callbacks.auth = function (err, msg) {
             if (err) {
                 return cb(err);
             }
 
-            cb();
-        }
+            if (msg[type] === "authError") {
+                cb(new Error(msg.reason));
+            } else if (msg[type] === "authOk") {
+                self._transport.onConnect(msg);
+                cb();
+            } else {
+                cb(new Error("Unexpected message"));
+            }
+        };
 
         var mode = self.mode;
         if (mode === clientModeAuto || mode === clientModeWebsocket) {
@@ -57,14 +74,14 @@
                 if (err && mode === clientModeAuto) {
                     // Fall back to long-polling if needed.
                     self._transport = new LongpollTransport(self);
-                    self._transport.connect(self.auth, onConnect);
+                    self._transport.connect(self.auth, onErr);
                 } else {
-                    onConnect(err);
+                    onErr(err);
                 }
             });
         } else if (mode === clientModeLongPolling) {
             self._transport = new LongpollTransport(self);
-            self._transport.connect(self.auth, onConnect);
+            self._transport.connect(self.auth, onErr);
         } else {
             cb("Unknown client mode");
         }
@@ -86,7 +103,10 @@
     BroadcasterClient.prototype._call = function (msg, cb) {
         var self = this;
 
-        var key = msg[type] + "_" + msg.channel;
+        var key = msg[type];
+        if (msg.channel) {
+            key += "_" + msg.channel;
+        }
         self._callbacks[key] = cb;
         self._transport.send(msg, function (err) {
             if (err) {
@@ -98,16 +118,11 @@
     BroadcasterClient.prototype._receive = function (msg) {
         var self = this;
 
-        var resultType = {
-            subscribeError: "subscribe",
-            subscribeOk: "subscribe",
-            unsubscribeError: "unsubscribe",
-            unsubscribeOk: "unsubscribe",
-        };
-
         if (msg[type] !== "message") {
-            var t = resultType[msg[type]] || msg[type];
-            var key = t + "_" + msg.channel;
+            var key = msg[type].replace(/Error$/, "").replace(/Ok$/, "");
+            if (msg.channel) {
+                key += "_" + msg.channel;
+            }
             if (self._callbacks[key]) {
                 self._callbacks[key](null, msg);
             }
@@ -172,21 +187,10 @@
     WebsocketTransport.prototype.connect = function (auth, cb) {
         var self = this;
         var conn = new WebSocket(self.client.url(clientModeWebsocket));
-        conn.onmessage = function (event) {
-            var data = JSON.parse(event.data);
-            if (data[type] === "authFailed") {
-                cb(new Error(data.reason));
-            } else if (data[type] === "authOk") {
-                // Authenticated, start listening
-                conn.onmessage = self.receive;
-                cb();
-            } else {
-                cb(new Error("Unexpected message"));
-            }
-        };
+        conn.onmessage = self.receive;
         conn.onopen = function () {
             auth[type] = "auth";
-            self.send(auth);
+            self.send(auth, cb);
         };
 
         self.conn = conn;
@@ -203,6 +207,10 @@
         this.client._receive(JSON.parse(event.data));
     };
 
+    WebsocketTransport.prototype.onConnect = function () {
+        // Do nothing
+    };
+
     WebsocketTransport.prototype.disconnect = function (cb) {
         this.conn.close();
         cb();
@@ -213,6 +221,44 @@
     }
 
     LongpollTransport.prototype.connect = function (auth, cb) {
+        auth[type] = "auth";
+        this.send(auth, cb);
+    };
+
+    LongpollTransport.prototype.send = function (msg, cb) {
+        var self = this;
+        if (self.token) {
+            msg.__token = self.token;
+        }
+
+        var request = new XMLHttpRequest();
+        request.open("POST", self.client.url(clientModeLongPolling), true);
+        request.setRequestHeader("Content-Type", "application/json");
+        request.addEventListener("load", function () {
+            if (request.status === 200) {
+                self.receive(JSON.parse(request.responseText));
+                cb(null);
+            } else {
+                cb (new Error("Bad response: " + request.status));
+            }
+        });
+        request.addEventListener("error", function () {
+            cb(new Error(request.responseText));
+        });
+        request.send(JSON.stringify(msg));
+    };
+
+    LongpollTransport.prototype.receive = function (data) {
+        for (var i = 0; i < data.length; i++) {
+            this.client._receive(data[i]);
+        }
+    };
+
+    LongpollTransport.prototype.onConnect = function (msg) {
+        this.token = msg.__token;
+    };
+
+    LongpollTransport.prototype.disconnect = function (cb) {
         cb();
     };
 
