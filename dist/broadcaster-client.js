@@ -160,6 +160,9 @@
             }
             if (self._callbacks[key]) {
                 self._callbacks[key](null, msg);
+                delete self._callbacks[key];
+            } else {
+                self._emit("error", msg);
             }
         } else {
             self._emit("message", msg.channel, msg.body);
