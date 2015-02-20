@@ -1,0 +1,15 @@
+{
+  "name": "broadcaster-client",
+  "version": "0.0.0",
+  "main": "dist/broadcaster-client.js",
+  "ignore": [
+    "**/.*",
+    "src",
+    "node_modules",
+    "bower_components",
+    "test",
+    "Gruntfile.js"
+  ],
+  "dependencies": {
+  },
+}
