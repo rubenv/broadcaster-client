@@ -42,6 +42,41 @@
         self._listeners = {};
     }
 
+    BroadcasterClient.prototype.on = function (event, fn) {
+        var self = this;
+        if (!self._listeners[event]) {
+            self._listeners[event] = [];
+        }
+        self._listeners[event].push(fn);
+    };
+
+    BroadcasterClient.prototype.off = function (event, fn) {
+        var listeners = this._listeners;
+        if (!listeners[event]) {
+            return;
+        }
+        if (!event) {
+            delete listeners[event];
+        }
+        var eventListeners = listeners[event];
+        var index = eventListeners.indexOf(fn);
+        if (index > -1) {
+            eventListeners.splice(index, 1);
+        }
+    };
+
+    BroadcasterClient.prototype._emit = function (event) {
+        var args = [].slice.call(arguments, 1);
+        var listeners = this._listeners;
+        if (!listeners[event]) {
+            return;
+        }
+        var eventListeners = listeners[event];
+        for (var i = 0; i < eventListeners.length; i++) {
+            eventListeners[i].apply(null, args);
+        }
+    };
+
     BroadcasterClient.prototype.connect = function (cb) {
         var self = this;
 
@@ -127,11 +162,7 @@
                 self._callbacks[key](null, msg);
             }
         } else {
-            if (!self.onMessage) {
-                throw new Error("Missing onMessage handler!");
-            }
-
-            self.onMessage(msg.channel, msg.body);
+            self._emit("message", msg.channel, msg.body);
         }
     };
 

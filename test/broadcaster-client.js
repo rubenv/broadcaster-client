@@ -39,7 +39,6 @@ describe("Broadcaster client", function () {
         it("[" + mode + "] Can connect", function (done) {
             var client = new BroadcasterClient("http://localhost:8080/broadcaster/", {
                 mode: mode,
-                onMessage: function () {},
             });
             series([
                 function (cb) { client.connect(cb); },
@@ -50,7 +49,6 @@ describe("Broadcaster client", function () {
         it("[" + mode + "] Sends auth data", function (done) {
             var client = new BroadcasterClient("http://localhost:8080/broadcaster/", {
                 mode: mode,
-                onMessage: function () {},
                 auth: {
                     bad: 1,
                 }
@@ -68,7 +66,6 @@ describe("Broadcaster client", function () {
         it("[" + mode + "] Can subscribe", function (done) {
             var client = new BroadcasterClient("http://localhost:8080/broadcaster/", {
                 mode: mode,
-                onMessage: function () {},
             });
             series([
                 function (cb) { client.connect(cb); },
@@ -80,7 +77,6 @@ describe("Broadcaster client", function () {
         it("[" + mode + "] Can unsubscribe", function (done) {
             var client = new BroadcasterClient("http://localhost:8080/broadcaster/", {
                 mode: mode,
-                onMessage: function () {},
             });
 
             series([
@@ -97,25 +93,25 @@ describe("Broadcaster client", function () {
             var i = 0;
             var client = new BroadcasterClient("http://localhost:8080/broadcaster/", {
                 mode: mode,
-                onMessage: function (channel, msg) {
-                    if (i === 0) {
-                        assert.equal(channel, "test");
-                        assert.equal(msg, "bla");
-                        publish("test", "bla 2", function (err) {
-                            if (err) {
-                                done(err);
-                            }
-                        });
-                    }
-
-                    if (i === 1) {
-                        assert.equal(channel, "test");
-                        assert.equal(msg, "bla 2");
-                        client.disconnect(done);
-                    }
-
-                    i++;
+            });
+            client.on("message", function (channel, message) {
+                if (i === 0) {
+                    assert.equal(channel, "test");
+                    assert.equal(message, "bla");
+                    publish("test", "bla 2", function (err) {
+                        if (err) {
+                            done(err);
+                        }
+                    });
                 }
+
+                if (i === 1) {
+                    assert.equal(channel, "test");
+                    assert.equal(message, "bla 2");
+                    client.disconnect(done);
+                }
+
+                i++;
             });
 
             series([
