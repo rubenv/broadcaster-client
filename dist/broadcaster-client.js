@@ -1,6 +1,5 @@
 (function () {
     // Identifiers (improves minification)
-    var transport = "_transport";
     var type = "__type";
 
     // Client modes
@@ -34,6 +33,9 @@
         self._secure = parser.protocol === "https";
         self._host = parser.host;
         self._path = parser.pathname;
+
+        self._callbacks = {};
+        self._listeners = {};
     }
 
     BroadcasterClient.prototype.connect = function (cb) {
@@ -50,19 +52,19 @@
         var mode = self.mode;
         if (mode === clientModeAuto || mode === clientModeWebsocket) {
             // Use a websocket
-            self[transport] = new WebsocketTransport(self);
-            self[transport].connect(self.auth, function (err) {
+            self._transport = new WebsocketTransport(self);
+            self._transport.connect(self.auth, function (err) {
                 if (err && mode === clientModeAuto) {
                     // Fall back to long-polling if needed.
-                    self[transport] = new LongpollTransport(self);
-                    self[transport].connect(self.auth, onConnect);
+                    self._transport = new LongpollTransport(self);
+                    self._transport.connect(self.auth, onConnect);
                 } else {
                     onConnect(err);
                 }
             });
         } else if (mode === clientModeLongPolling) {
-            self[transport] = new LongpollTransport(self);
-            self[transport].connect(self.auth, onConnect);
+            self._transport = new LongpollTransport(self);
+            self._transport.connect(self.auth, onConnect);
         } else {
             cb("Unknown client mode");
         }
@@ -81,8 +83,90 @@
         return scheme + "://" + this._host + this._path;
     };
 
+    BroadcasterClient.prototype._call = function (msg, cb) {
+        var self = this;
+
+        var key = msg[type] + "_" + msg.channel;
+        self._callbacks[key] = cb;
+        self._transport.send(msg, function (err) {
+            if (err) {
+                cb(err);
+            }
+        });
+    };
+
+    BroadcasterClient.prototype._receive = function (msg) {
+        var self = this;
+
+        var resultType = {
+            subscribeError: "subscribe",
+            subscribeOk: "subscribe",
+            unsubscribeError: "unsubscribe",
+            unsubscribeOk: "unsubscribe",
+        };
+
+        if (msg[type] !== "message") {
+            var t = resultType[msg[type]] || msg[type];
+            var key = t + "_" + msg.channel;
+            if (self._callbacks[key]) {
+                self._callbacks[key](null, msg);
+            }
+        } else {
+            if (!self.onMessage) {
+                throw new Error("Missing onMessage handler!");
+            }
+
+            self.onMessage(msg.channel, msg.body);
+        }
+    };
+
+    BroadcasterClient.prototype.subscribe = function (channel, cb) {
+        var sub = new Message("subscribe").set("channel", channel);
+        this._call(sub, function (err, resp) {
+            if (err) {
+                return cb(err);
+            }
+
+            if (resp.channel !== channel) {
+                return cb(new Error("Channel mismatch"));
+            }
+
+            var t = resp[type];
+            if (t === "subscribeOk") {
+                cb();
+            } else {
+                cb(new Error(t === "subscribeError" ? resp.reason : ("Unexpected " + t)));
+            }
+        });
+    };
+
+    BroadcasterClient.prototype.unsubscribe = function (channel, cb) {
+        var sub = new Message("unsubscribe").set("channel", channel);
+        this._call(sub, function (err, resp) {
+            if (err) {
+                return cb(err);
+            }
+
+            if (resp.channel !== channel) {
+                return cb(new Error("Channel mismatch"));
+            }
+
+            var t = resp[type];
+            if (t === "unsubscribeOk") {
+                cb();
+            } else {
+                cb(new Error(t === "unsubscribeError" ? resp.reason : ("Unexpected " + t)));
+            }
+        });
+    };
+
+    BroadcasterClient.prototype.disconnect = function (cb) {
+        this._transport.disconnect(cb);
+    };
+
     function WebsocketTransport(client) {
         this.client = client;
+        this.receive = this.receive.bind(this);
     }
 
     WebsocketTransport.prototype.connect = function (auth, cb) {
@@ -92,16 +176,36 @@
             var data = JSON.parse(event.data);
             if (data[type] === "authFailed") {
                 cb(new Error(data.reason));
-            } else {
+            } else if (data[type] === "authOk") {
+                // Authenticated, start listening
+                conn.onmessage = self.receive;
                 cb();
+            } else {
+                cb(new Error("Unexpected message"));
             }
         };
         conn.onopen = function () {
             auth[type] = "auth";
-            conn.send(JSON.stringify(auth));
+            self.send(auth);
         };
 
         self.conn = conn;
+    };
+
+    WebsocketTransport.prototype.send = function (msg, cb) {
+        this.conn.send(JSON.stringify(msg));
+        if (cb) {
+            cb();
+        }
+    };
+
+    WebsocketTransport.prototype.receive = function (event) {
+        this.client._receive(JSON.parse(event.data));
+    };
+
+    WebsocketTransport.prototype.disconnect = function (cb) {
+        this.conn.close();
+        cb();
     };
 
     function LongpollTransport(client) {
@@ -110,6 +214,15 @@
 
     LongpollTransport.prototype.connect = function (auth, cb) {
         cb();
+    };
+
+    function Message(t) {
+        this[type] = t;
+    }
+
+    Message.prototype.set = function (k, v) {
+        this[k] = v;
+        return this;
     };
 
     this.BroadcasterClient = BroadcasterClient;
