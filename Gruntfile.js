@@ -107,13 +107,20 @@ module.exports = function (grunt) {
                     wait: false,
                 },
                 cmd: "redis-server",
-                args: ["--port", redisPort],
+                args: ["--port", redisPort, "--loglevel", "debug"],
+            },
+            monitor: {
+                options: {
+                    wait: false,
+                },
+                cmd: "redis-cli",
+                args: ["-p", redisPort, "monitor"],
             }
         }
     });
 
     grunt.registerTask("default", ["test"]);
     grunt.registerTask("build", ["clean", "jshint", "jscs", "concat", "uglify"]);
-    grunt.registerTask("test", ["build", "run:redis", "run:backend", "karma:unit", "watch:all"]);
-    grunt.registerTask("ci", ["build", "run:redis", "run:backend", "karma:unitci_firefox"]);
+    grunt.registerTask("test", ["build", "run:redis", "run:monitor", "run:backend", "karma:unit", "watch:all"]);
+    grunt.registerTask("ci", ["build", "run:redis", "run:monitor", "run:backend", "karma:unitci_firefox"]);
 };

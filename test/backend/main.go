@@ -28,6 +28,8 @@ func main() {
 
 	http.Handle("/broadcaster/", s)
 	http.HandleFunc("/publish/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+
 		err := r.ParseForm()
 		if err != nil {
 			http.Error(w, err.Error(), 500)
