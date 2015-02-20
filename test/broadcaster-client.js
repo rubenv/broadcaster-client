@@ -87,7 +87,9 @@ describe("Broadcaster client", function () {
             ], done);
         });
 
-        it("[" + mode + "] Can receive message", function (done) {
+        it.only("[" + mode + "] Can receive message", function (done) {
+            this.timeout(5000);
+
             var i = 0;
             var client = new BroadcasterClient("http://localhost:8080/broadcaster/", {
                 mode: mode,
@@ -125,5 +127,5 @@ describe("Broadcaster client", function () {
     }
 
     testClient("longpoll");
-    testClient("websocket");
+    //testClient("websocket");
 });

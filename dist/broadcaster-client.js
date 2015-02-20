@@ -192,6 +192,9 @@
             auth[type] = "auth";
             self.send(auth, cb);
         };
+        conn.onerror = function () {
+            cb(new Error("Upgrade failed"));
+        };
 
         self.conn = conn;
     };
@@ -218,6 +221,10 @@
 
     function LongpollTransport(client) {
         this.client = client;
+        this.polling = false;
+        this.pollReq = null;
+        this.pollSeq = 0;
+        this.poll = this.poll.bind(this);
     }
 
     LongpollTransport.prototype.connect = function (auth, cb) {
@@ -255,11 +262,36 @@
     };
 
     LongpollTransport.prototype.onConnect = function (msg) {
-        this.token = msg.__token;
+        var self = this;
+        self.token = msg.__token;
+        self.polling = true;
+        self.poll();
     };
 
     LongpollTransport.prototype.disconnect = function (cb) {
+        var self = this;
+        self.polling = false;
+        if (self.pollReq) {
+            self.pollReq.abort();
+        }
         cb();
+    };
+
+    LongpollTransport.prototype.poll = function () {
+        var self = this;
+
+        var msg = new Message("poll");
+        msg.seq = this.pollSeq.toString();
+        this.pollReq = self.send(msg, function (err) {
+            if (err) {
+                // Random backoff
+                var timeout = Math.random() * self.client.timeout / 2;
+                setTimeout(self.poll, timeout);
+            } else {
+                self.poll();
+            }
+        });
+        this.pollSeq++;
     };
 
     function Message(t) {

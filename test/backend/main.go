@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/garyburd/redigo/redis"
 	"github.com/rubenv/broadcaster"
@@ -24,6 +25,8 @@ func main() {
 			}
 			return true
 		},
+
+		PollTime: 100 * time.Millisecond,
 	}
 
 	err := s.Prepare()
