@@ -39,6 +39,7 @@ describe("Broadcaster client", function () {
         it("[" + mode + "] Can connect", function (done) {
             var client = new BroadcasterClient("http://localhost:8080/broadcaster/", {
                 mode: mode,
+                onMessage: function () {},
             });
             series([
                 function (cb) { client.connect(cb); },
@@ -49,6 +50,7 @@ describe("Broadcaster client", function () {
         it("[" + mode + "] Sends auth data", function (done) {
             var client = new BroadcasterClient("http://localhost:8080/broadcaster/", {
                 mode: mode,
+                onMessage: function () {},
                 auth: {
                     bad: 1,
                 }
@@ -66,6 +68,7 @@ describe("Broadcaster client", function () {
         it("[" + mode + "] Can subscribe", function (done) {
             var client = new BroadcasterClient("http://localhost:8080/broadcaster/", {
                 mode: mode,
+                onMessage: function () {},
             });
             series([
                 function (cb) { client.connect(cb); },
@@ -77,6 +80,7 @@ describe("Broadcaster client", function () {
         it("[" + mode + "] Can unsubscribe", function (done) {
             var client = new BroadcasterClient("http://localhost:8080/broadcaster/", {
                 mode: mode,
+                onMessage: function () {},
             });
 
             series([
@@ -87,7 +91,7 @@ describe("Broadcaster client", function () {
             ], done);
         });
 
-        it.only("[" + mode + "] Can receive message", function (done) {
+        it("[" + mode + "] Can receive message", function (done) {
             this.timeout(5000);
 
             var i = 0;
@@ -127,5 +131,5 @@ describe("Broadcaster client", function () {
     }
 
     testClient("longpoll");
-    //testClient("websocket");
+    testClient("websocket");
 });
