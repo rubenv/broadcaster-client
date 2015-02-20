@@ -43,11 +43,11 @@
     }
 
     BroadcasterClient.prototype.on = function (event, fn) {
-        var self = this;
-        if (!self._listeners[event]) {
-            self._listeners[event] = [];
+        var listeners = this._listeners;
+        if (!listeners[event]) {
+            listeners[event] = [];
         }
-        self._listeners[event].push(fn);
+        listeners[event].push(fn);
     };
 
     BroadcasterClient.prototype.off = function (event, fn) {
@@ -55,7 +55,7 @@
         if (!listeners[event]) {
             return;
         }
-        if (!event) {
+        if (!fn) {
             delete listeners[event];
         }
         var eventListeners = listeners[event];
@@ -136,14 +136,12 @@
     };
 
     BroadcasterClient.prototype._call = function (msg, cb) {
-        var self = this;
-
         var key = msg[type];
         if (msg.channel) {
             key += "_" + msg.channel;
         }
-        self._callbacks[key] = cb;
-        self._transport.send(msg, function (err) {
+        this._callbacks[key] = cb;
+        this._transport.send(msg, function (err) {
             if (err) {
                 cb(err);
             }
@@ -170,7 +168,7 @@
     };
 
     BroadcasterClient.prototype.subscribe = function (channel, cb) {
-        var sub = new Message("subscribe").set("channel", channel);
+        var sub = new Message("subscribe", channel);
         this._call(sub, function (err, resp) {
             if (err) {
                 return cb(err);
@@ -190,7 +188,7 @@
     };
 
     BroadcasterClient.prototype.unsubscribe = function (channel, cb) {
-        var sub = new Message("unsubscribe").set("channel", channel);
+        var sub = new Message("unsubscribe", channel);
         this._call(sub, function (err, resp) {
             if (err) {
                 return cb(err);
@@ -296,17 +294,15 @@
     };
 
     LongpollTransport.prototype.onConnect = function (msg) {
-        var self = this;
-        self.token = msg.__token;
-        self.polling = true;
-        self.poll();
+        this.token = msg.__token;
+        this.polling = true;
+        this.poll();
     };
 
     LongpollTransport.prototype.disconnect = function (cb) {
-        var self = this;
-        self.polling = false;
-        if (self.pollReq) {
-            self.pollReq.abort();
+        this.polling = false;
+        if (this.pollReq) {
+            this.pollReq.abort();
         }
         cb();
     };
@@ -328,14 +324,12 @@
         this.pollSeq++;
     };
 
-    function Message(t) {
+    function Message(t, c) {
         this[type] = t;
+        if (c) {
+            this.channel = c;
+        }
     }
-
-    Message.prototype.set = function (k, v) {
-        this[k] = v;
-        return this;
-    };
 
     this.BroadcasterClient = BroadcasterClient;
 })();
