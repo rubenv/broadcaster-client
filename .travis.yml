@@ -1,0 +1,12 @@
+language: go
+
+go:
+    - 1.4
+
+services:
+  - redis-server
+
+install: true
+
+script:
+    - ls -al
