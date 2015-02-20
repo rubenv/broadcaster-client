@@ -9,4 +9,6 @@ services:
 install: true
 
 script:
+    - go get -v -u github.com/rubenv/broadcaster
+    - go run test/backend/main.go &
     - ls -al
