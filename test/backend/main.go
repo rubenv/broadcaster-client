@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/garyburd/redigo/redis"
+	"github.com/gorilla/websocket"
 	"github.com/rubenv/broadcaster"
 )
 
@@ -14,6 +15,17 @@ func main() {
 
 	s := &broadcaster.Server{
 		RedisHost: fmt.Sprintf("localhost:%d", redisPort),
+		Upgrader: websocket.Upgrader{
+			CheckOrigin: func(r *http.Request) bool { return true },
+		},
+
+		// Refuse any connection with a "bad" field in auth data.
+		CanConnect: func(data map[string]string) bool {
+			if _, ok := data["bad"]; ok {
+				return false
+			}
+			return true
+		},
 	}
 
 	err := s.Prepare()
