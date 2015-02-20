@@ -7,6 +7,9 @@ module.exports = function (grunt) {
     grunt.loadNpmTasks("grunt-contrib-watch");
     grunt.loadNpmTasks("grunt-jscs");
     grunt.loadNpmTasks("grunt-karma");
+    grunt.loadNpmTasks("grunt-run");
+
+    var redisPort = 28795;
 
     grunt.initConfig({
         config: {
@@ -89,11 +92,28 @@ module.exports = function (grunt) {
                 browsers: ["Firefox", "PhantomJS"],
                 singleRun: true
             }
+        },
+
+        run: {
+            backend: {
+                options: {
+                    wait: false,
+                },
+                cmd: "go",
+                args: ["run", "test/backend/main.go"],
+            },
+            redis: {
+                options: {
+                    wait: false,
+                },
+                cmd: "redis-server",
+                args: ["--port", redisPort],
+            }
         }
     });
 
     grunt.registerTask("default", ["test"]);
     grunt.registerTask("build", ["clean", "jshint", "jscs", "concat", "uglify"]);
-    grunt.registerTask("test", ["build", "karma:unit", "watch:all"]);
-    grunt.registerTask("ci", ["build", "karma:unitci_firefox"]);
+    grunt.registerTask("test", ["build", "run:redis", "run:backend", "karma:unit", "watch:all"]);
+    grunt.registerTask("ci", ["build", "run:redis", "run:backend", "karma:unitci_firefox"]);
 };

@@ -3,14 +3,10 @@ language: go
 go:
     - 1.4
 
-services:
-  - redis-server
-
 install: true
 
 script:
     - go get -v -u github.com/rubenv/broadcaster
-    - go run test/backend/main.go &
     - npm install -g grunt-cli bower
     - bower install
     - export DISPLAY=:99.0
