@@ -9,6 +9,7 @@ describe("Broadcaster client", function () {
             fns[i](function (err) {
                 if (err) {
                     cb(err);
+                    return;
                 }
 
                 callFn(i + 1);

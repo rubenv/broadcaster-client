@@ -7,6 +7,26 @@
     var clientModeWebsocket = "websocket";
     var clientModeLongPolling = "longpoll";
 
+    function series(fns, cb) {
+        function callFn(i) {
+            if (i === fns.length) {
+                cb();
+                return;
+            }
+
+            fns[i](function (err) {
+                if (err) {
+                    cb(err);
+                    return;
+                }
+
+                callFn(i + 1);
+            });
+        }
+
+        callFn(0);
+    }
+
     function BroadcasterClient(url, options) {
         var self = this;
         if (!options) {
@@ -14,6 +34,9 @@
         }
 
         self.mode = clientModeAuto;
+        self.auth = {};
+        self.timeout = 30000;
+        self.max_attempts = 10;
 
         for (var key in options) {
             self[key] = options[key];
@@ -21,14 +44,6 @@
 
         if (!url) {
             throw new Error("Missing URL");
-        }
-
-        if (!self.auth) {
-            self.auth = {};
-        }
-
-        if (!self.timeout) {
-            self.timeout = 30000;
         }
 
         // Parse URL
@@ -40,6 +55,8 @@
 
         self._callbacks = {};
         self._listeners = {};
+        self._channels = {};
+        self._attempts = 0;
     }
 
     BroadcasterClient.prototype.on = function (event, fn) {
@@ -80,10 +97,19 @@
     BroadcasterClient.prototype.connect = function (cb) {
         var self = this;
 
+        self._should_disconnect = false;
+
         function onErr(err) {
             if (err) {
                 return cb(err);
             }
+        }
+
+        var channels = Object.keys(self._channels);
+        function subscribeChannel(channel) {
+            return function (cb) {
+                self.subscribe(channel, cb);
+            };
         }
 
         self._callbacks.auth = function (err, msg) {
@@ -94,8 +120,9 @@
             if (msg[type] === "authError") {
                 cb(new Error(msg.reason));
             } else if (msg[type] === "authOk") {
+                self._attempts = 0;
                 self._transport.onConnect(msg);
-                cb();
+                series(channels.map(subscribeChannel), cb);
             } else {
                 cb(new Error("Unexpected message"));
             }
@@ -168,8 +195,9 @@
     };
 
     BroadcasterClient.prototype.subscribe = function (channel, cb) {
+        var self = this;
         var sub = new Message("subscribe", channel);
-        this._call(sub, function (err, resp) {
+        self._call(sub, function (err, resp) {
             if (err) {
                 return cb(err);
             }
@@ -180,6 +208,7 @@
 
             var t = resp[type];
             if (t === "subscribeOk") {
+                self._channels[channel] = true;
                 cb();
             } else {
                 cb(new Error(t === "subscribeError" ? resp.reason : ("Unexpected " + t)));
@@ -188,8 +217,9 @@
     };
 
     BroadcasterClient.prototype.unsubscribe = function (channel, cb) {
+        var self = this;
         var sub = new Message("unsubscribe", channel);
-        this._call(sub, function (err, resp) {
+        self._call(sub, function (err, resp) {
             if (err) {
                 return cb(err);
             }
@@ -200,6 +230,7 @@
 
             var t = resp[type];
             if (t === "unsubscribeOk") {
+                delete self._channels[channel];
                 cb();
             } else {
                 cb(new Error(t === "unsubscribeError" ? resp.reason : ("Unexpected " + t)));
@@ -207,28 +238,66 @@
         });
     };
 
+    BroadcasterClient.prototype._disconnected = function () {
+        var self = this;
+        if (self._should_disconnect) {
+            return;
+        }
+
+        if (self._attempts === self.max_attempts) {
+            // Give up
+            self._emit("disconnected");
+            return;
+        }
+
+        self._attempts++;
+        self.connect(function (err) {
+            if (!err) {
+                // Connected!
+                return;
+            }
+
+            setTimeout(function () {
+                self._disconnected();
+            }, (self._attempts - 1) * 1000);
+        });
+    };
+
     BroadcasterClient.prototype.disconnect = function (cb) {
+        this._should_disconnect = true;
         this._transport.disconnect(cb);
     };
 
     function WebsocketTransport(client) {
+        this.connected = false;
         this.client = client;
         this.receive = this.receive.bind(this);
     }
 
     WebsocketTransport.prototype.connect = function (auth, cb) {
         var self = this;
-        var conn = new WebSocket(self.client.url(clientModeWebsocket));
-        conn.onmessage = self.receive;
-        conn.onopen = function () {
-            auth[type] = "auth";
-            self.send(auth, cb);
-        };
-        conn.onerror = function () {
-            cb(new Error("Upgrade failed"));
-        };
+        try {
+            var conn = new WebSocket(self.client.url(clientModeWebsocket));
+            conn.onmessage = self.receive;
+            conn.onopen = function () {
+                self.connected = true;
+                auth[type] = "auth";
+                self.send(auth, cb);
+            };
+            conn.onclose = function () {
+                if (self.connected) {
+                    self.connected = false;
+                    self.client._disconnected();
+                }
+            };
+            conn.onerror = function () {
+                cb(new Error("Upgrade failed"));
+            };
 
-        self.conn = conn;
+            self.conn = conn;
+        } catch (e) {
+            cb(e);
+        }
     };
 
     WebsocketTransport.prototype.send = function (msg, cb) {
@@ -314,9 +383,7 @@
         msg.seq = this.pollSeq.toString();
         this.pollReq = self.send(msg, function (err) {
             if (err) {
-                // Random backoff
-                var timeout = Math.random() * self.client.timeout / 2;
-                setTimeout(self.poll, timeout);
+                self.client._disconnected();
             } else {
                 self.poll();
             }
