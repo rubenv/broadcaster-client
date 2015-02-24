@@ -1,6 +1,6 @@
 {
   "name": "broadcaster-client",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "main": "dist/broadcaster-client.js",
   "ignore": [
     "**/.*",
