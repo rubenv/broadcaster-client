@@ -49,7 +49,7 @@
         // Parse URL
         var parser = document.createElement("a");
         parser.href = url;
-        self._secure = parser.protocol === "https";
+        self._secure = parser.protocol === "https:";
         self._host = parser.host;
         self._path = parser.pathname;
 
