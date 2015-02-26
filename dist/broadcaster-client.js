@@ -272,6 +272,8 @@
         this.connected = false;
         this.client = client;
         this.receive = this.receive.bind(this);
+        this.ping = this.ping.bind(this);
+        this.pingInterval = null;
     }
 
     WebsocketTransport.prototype.connect = function (auth, cb) {
@@ -313,11 +315,22 @@
 
     WebsocketTransport.prototype.onConnect = function () {
         // Do nothing
+        if (!this.pingInterval) {
+            this.pingInterval = setInterval(this.ping, this.client.timeout * 0.95);
+        }
     };
 
     WebsocketTransport.prototype.disconnect = function (cb) {
+        if (this.pingInterval) {
+            clearTimeout(this.pingInterval);
+            this.pingInterval = null;
+        }
         this.conn.close();
         cb();
+    };
+
+    WebsocketTransport.prototype.ping = function () {
+        this.send(new Message("ping"));
     };
 
     function LongpollTransport(client) {
