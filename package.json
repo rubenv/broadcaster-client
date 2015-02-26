@@ -1,6 +1,6 @@
 {
   "name": "broadcaster-client",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "JavaScript client for broadcaster.",
   "main": "dist/broadcaster-client.js",
   "directories": {
