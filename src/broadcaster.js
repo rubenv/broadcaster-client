@@ -57,6 +57,9 @@
         self._listeners = {};
         self._channels = {};
         self._attempts = 0;
+
+        self._queue = [];
+        self._ready = false;
     }
 
     BroadcasterClient.prototype.on = function (event, fn) {
@@ -168,11 +171,18 @@
             key += "_" + msg.channel;
         }
         this._callbacks[key] = cb;
-        this._transport.send(msg, function (err) {
-            if (err) {
-                cb(err);
-            }
-        });
+        if (!this._ready) {
+            this._queue.push({
+                msg: msg,
+                cb: cb,
+            });
+        } else {
+            this._transport.send(msg, function (err) {
+                if (err) {
+                    cb(err);
+                }
+            });
+        }
     };
 
     BroadcasterClient.prototype._receive = function (msg) {
@@ -244,6 +254,8 @@
             return;
         }
 
+        self._ready = false;
+
         if (self._attempts === self.max_attempts) {
             // Give up
             self._emit("disconnected");
@@ -268,12 +280,22 @@
         this._transport.disconnect(cb);
     };
 
+    BroadcasterClient.prototype._onready = function () {
+        this._ready = true;
+        for (var i = 0; i < this._queue.length; i++) {
+            var item = this._queue[i];
+            this._call(item.msg, item.cb);
+        }
+        this._queue = [];
+    };
+
     function WebsocketTransport(client) {
         this.connected = false;
         this.client = client;
         this.receive = this.receive.bind(this);
         this.ping = this.ping.bind(this);
         this.pingInterval = null;
+        this.sendQueue = [];
     }
 
     WebsocketTransport.prototype.connect = function (auth, cb) {
@@ -284,7 +306,14 @@
             conn.onopen = function () {
                 self.connected = true;
                 auth[type] = "auth";
-                self.send(auth, cb);
+                self.send(auth, function (err) {
+                    if (err) {
+                        cb(err);
+                        return;
+                    }
+
+                    self.client._onready();
+                });
             };
             conn.onclose = function () {
                 if (self.connected) {
@@ -342,8 +371,17 @@
     }
 
     LongpollTransport.prototype.connect = function (auth, cb) {
+        var self = this;
         auth[type] = "auth";
-        this.send(auth, cb);
+
+        self.send(auth, function (err) {
+            if (err) {
+                cb(err);
+                return;
+            }
+
+            self.client._onready();
+        });
     };
 
     LongpollTransport.prototype.send = function (msg, cb) {

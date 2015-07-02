@@ -1,6 +1,6 @@
 # broadcaster-client
 
-> Javascript client for [broadcaster](https://github.com/rubenv/broadcaster).
+> JavaScript client for [broadcaster](https://github.com/rubenv/broadcaster).
 
 [![Build Status](https://travis-ci.org/rubenv/broadcaster-client.png?branch=master)](https://travis-ci.org/rubenv/broadcaster-client)
 
