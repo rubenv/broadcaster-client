@@ -195,7 +195,9 @@
             }
             if (self._callbacks[key]) {
                 self._callbacks[key](null, msg);
-                delete self._callbacks[key];
+                if (key !== "auth") {
+                    delete self._callbacks[key];
+                }
             } else {
                 self._emit("error", msg);
             }
