@@ -320,6 +320,8 @@
             conn.onclose = function () {
                 if (self.connected) {
                     self.connected = false;
+                    clearTimeout(self.pingInterval);
+                    self.pingInterval = null;
                     self.client._disconnected();
                 }
             };
