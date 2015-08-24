@@ -189,6 +189,7 @@
         var self = this;
 
         if (msg[type] !== "message") {
+            var isError = msg[type].match(/Error$/);
             var key = msg[type].replace(/Error$/, "").replace(/Ok$/, "");
             if (msg.channel) {
                 key += "_" + msg.channel;
@@ -198,7 +199,7 @@
                 if (key !== "auth") {
                     delete self._callbacks[key];
                 }
-            } else {
+            } else if (isError) {
                 self._emit("error", msg);
             }
         } else {
