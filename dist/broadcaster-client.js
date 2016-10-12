@@ -403,7 +403,11 @@
                 self.receive(JSON.parse(request.responseText));
                 cb(null);
             } else {
-                cb (new Error("Bad response: " + request.status));
+                var msg = "Bad response: " + request.status;
+                if (request.status === 500) {
+                    msg += ", " + request.responseText;
+                }
+                cb (new Error(msg));
             }
         });
         request.addEventListener("error", function () {
