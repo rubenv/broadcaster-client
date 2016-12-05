@@ -337,7 +337,11 @@
     };
 
     WebsocketTransport.prototype.send = function (msg, cb) {
-        this.conn.send(JSON.stringify(msg));
+        try {
+            this.conn.send(JSON.stringify(msg));
+        } catch (e) {
+            this.conn.onclose();
+        }
         if (cb) {
             cb();
         }
