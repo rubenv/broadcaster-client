@@ -341,7 +341,10 @@
             this.conn.send(JSON.stringify(msg));
         } catch (e) {
             this.conn.onclose();
-            cb(new Error("Send failed, connection is closed"));
+            if (cb) {
+                cb(new Error("Send failed, connection is closed"));
+            }
+            return;
         }
         if (cb) {
             cb();
