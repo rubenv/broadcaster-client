@@ -7,6 +7,9 @@
     var clientModeWebsocket = "websocket";
     var clientModeLongPolling = "longpoll";
 
+    function noop() {
+    }
+
     function series(fns, cb) {
         function callFn(i) {
             if (i === fns.length) {
@@ -337,17 +340,16 @@
     };
 
     WebsocketTransport.prototype.send = function (msg, cb) {
+        if (!cb) {
+            cb = noop;
+        }
+
         try {
             this.conn.send(JSON.stringify(msg));
+            cb();
         } catch (e) {
             this.conn.onclose();
-            if (cb) {
-                cb(new Error("Send failed, connection is closed"));
-            }
-            return;
-        }
-        if (cb) {
-            cb();
+            cb(e);
         }
     };
 
