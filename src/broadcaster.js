@@ -348,7 +348,6 @@
             this.conn.send(JSON.stringify(msg));
             cb();
         } catch (e) {
-            this.conn.onclose();
             cb(e);
         }
     };
