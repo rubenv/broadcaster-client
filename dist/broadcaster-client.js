@@ -257,6 +257,7 @@
     BroadcasterClient.prototype._disconnected = function () {
         var self = this;
         if (self._should_disconnect) {
+            self._emit("disconnected");
             return;
         }
 
@@ -279,6 +280,10 @@
                 self._disconnected();
             }, (self._attempts - 1) * 1000);
         });
+    };
+
+    BroadcasterClient.prototype.stopReconnect = function () {
+        this._should_disconnect = true;
     };
 
     BroadcasterClient.prototype.disconnect = function (cb) {
@@ -415,6 +420,9 @@
                 var msg = "Bad response: " + request.status;
                 if (request.status === 500) {
                     msg += ", " + request.responseText;
+                }
+                if (request.status === 401) {
+                    self.client.stopReconnect();
                 }
                 cb (new Error(msg));
             }
