@@ -5,7 +5,6 @@ module.exports = function (grunt) {
     grunt.loadNpmTasks("grunt-contrib-jshint");
     grunt.loadNpmTasks("grunt-contrib-uglify");
     grunt.loadNpmTasks("grunt-contrib-watch");
-    grunt.loadNpmTasks("grunt-jscs");
     grunt.loadNpmTasks("grunt-karma");
     grunt.loadNpmTasks("grunt-run");
 
@@ -31,17 +30,6 @@ module.exports = function (grunt) {
                 },
                 files: {
                     src: ["*.js", "test/**/*.js"]
-                }
-            }
-        },
-
-        jscs: {
-            src: {
-                options: {
-                    config: ".jscs.json"
-                },
-                files: {
-                    src: ["*.js", "{src,test}/**/*.js"]
                 }
             }
         },
@@ -120,7 +108,7 @@ module.exports = function (grunt) {
     });
 
     grunt.registerTask("default", ["test"]);
-    grunt.registerTask("build", ["clean", "jshint", "jscs", "concat", "uglify"]);
+    grunt.registerTask("build", ["clean", "jshint", "concat", "uglify"]);
     grunt.registerTask("test", ["build", "run:redis", "run:monitor", "run:backend", "karma:unit", "watch:all"]);
     grunt.registerTask("ci", ["build", "run:redis", "run:monitor", "run:backend", "karma:unitci_firefox"]);
 };
