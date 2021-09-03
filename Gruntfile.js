@@ -5,6 +5,7 @@ module.exports = function (grunt) {
     grunt.loadNpmTasks("grunt-contrib-jshint");
     grunt.loadNpmTasks("grunt-contrib-uglify");
     grunt.loadNpmTasks("grunt-contrib-watch");
+    grunt.loadNpmTasks("grunt-prettier");
     grunt.loadNpmTasks("grunt-karma");
     grunt.loadNpmTasks("grunt-run");
 
@@ -12,7 +13,7 @@ module.exports = function (grunt) {
 
     grunt.initConfig({
         config: {
-            name: "broadcaster-client",
+            name: "broadcaster-client"
         },
 
         jshint: {
@@ -31,6 +32,16 @@ module.exports = function (grunt) {
                 files: {
                     src: ["*.js", "test/**/*.js"]
                 }
+            }
+        },
+
+        prettier: {
+            options: {
+                tabWidth: 4,
+                printWidth: 100
+            },
+            files: {
+                src: ["*.js", "{src,test}/**/*.js"]
             }
         },
 
@@ -85,30 +96,43 @@ module.exports = function (grunt) {
         run: {
             backend: {
                 options: {
-                    wait: false,
+                    wait: false
                 },
                 cmd: "go",
-                args: ["run", "test/backend/main.go"],
+                args: ["run", "test/backend/main.go"]
             },
             redis: {
                 options: {
-                    wait: false,
+                    wait: false
                 },
                 cmd: "redis-server",
-                args: ["--port", redisPort, "--loglevel", "debug"],
+                args: ["--port", redisPort, "--loglevel", "debug"]
             },
             monitor: {
                 options: {
-                    wait: false,
+                    wait: false
                 },
                 cmd: "redis-cli",
-                args: ["-p", redisPort, "monitor"],
+                args: ["-p", redisPort, "monitor"]
             }
         }
     });
 
     grunt.registerTask("default", ["test"]);
-    grunt.registerTask("build", ["clean", "jshint", "concat", "uglify"]);
-    grunt.registerTask("test", ["build", "run:redis", "run:monitor", "run:backend", "karma:unit", "watch:all"]);
-    grunt.registerTask("ci", ["build", "run:redis", "run:monitor", "run:backend", "karma:unitci_firefox"]);
+    grunt.registerTask("build", ["clean", "jshint", "prettier", "concat", "uglify"]);
+    grunt.registerTask("test", [
+        "build",
+        "run:redis",
+        "run:monitor",
+        "run:backend",
+        "karma:unit",
+        "watch:all"
+    ]);
+    grunt.registerTask("ci", [
+        "build",
+        "run:redis",
+        "run:monitor",
+        "run:backend",
+        "karma:unitci_firefox"
+    ]);
 };

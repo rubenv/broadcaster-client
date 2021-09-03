@@ -3,10 +3,7 @@ module.exports = function (config) {
         basePath: "../..",
         frameworks: ["mocha", "chai"],
         autoWatch: false,
-        files: [
-            "dist/broadcaster-client.js",
-            "test/*.js"
-        ],
+        files: ["dist/broadcaster-client.js", "test/*.js"],
         port: 9877
     });
 };

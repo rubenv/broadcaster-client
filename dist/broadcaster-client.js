@@ -7,8 +7,7 @@
     var clientModeWebsocket = "websocket";
     var clientModeLongPolling = "longpoll";
 
-    function noop() {
-    }
+    function noop() {}
 
     function series(fns, cb) {
         function callFn(i) {
@@ -177,7 +176,7 @@
         if (!this._ready) {
             this._queue.push({
                 msg: msg,
-                cb: cb,
+                cb: cb
             });
         } else {
             this._transport.send(msg, function (err) {
@@ -227,7 +226,7 @@
                 self._channels[channel] = true;
                 cb();
             } else {
-                cb(new Error(t === "subscribeError" ? resp.reason : ("Unexpected " + t)));
+                cb(new Error(t === "subscribeError" ? resp.reason : "Unexpected " + t));
             }
         });
     };
@@ -249,7 +248,7 @@
                 delete self._channels[channel];
                 cb();
             } else {
-                cb(new Error(t === "unsubscribeError" ? resp.reason : ("Unexpected " + t)));
+                cb(new Error(t === "unsubscribeError" ? resp.reason : "Unexpected " + t));
             }
         });
     };
@@ -424,7 +423,7 @@
                 if (request.status === 401) {
                     self.client.stopReconnect();
                 }
-                cb (new Error(msg));
+                cb(new Error(msg));
             }
         });
         request.addEventListener("error", function () {
